@@ -16,42 +16,33 @@
 #include <string>
 #include <utility>
 
-namespace WithRobot
-{
+namespace WithRobot {
 MyAhrsDriverForROS::MyAhrsDriverForROS(std::string port, int baud_rate)
-: iMyAhrsPlus(port, baud_rate), Node("myahrs_ros2")
-{
+: iMyAhrsPlus(port, baud_rate), Node("myahrs_ros2") {
   // dependent on user device
   publish_tf_ = false;
   frame_id_ = "imu_link";
   parent_frame_id_ = "base_link";
 
-  this->declare_parameter("linear_acceleration_stddev");
-  this->declare_parameter("angular_velocity_stddev");
-  this->declare_parameter("magnetic_field_stddev");
-  this->declare_parameter("orientation_stddev");
+  this->declare_parameter("linear_acceleration_stddev", linear_acceleration_stddev_);
+  this->declare_parameter("angular_velocity_stddev", angular_velocity_stddev_);
+  this->declare_parameter("magnetic_field_stddev", magnetic_field_stddev_);
+  this->declare_parameter("orientation_stddev", orientation_stddev_);
 
-  this->get_parameter(
-    "linear_acceleration_stddev", linear_acceleration_stddev_);
+  this->get_parameter("linear_acceleration_stddev", linear_acceleration_stddev_);
   this->get_parameter("angular_velocity_stddev", angular_velocity_stddev_);
   this->get_parameter("magnetic_field_stddev", magnetic_field_stddev_);
   this->get_parameter("orientation_stddev", orientation_stddev_);
 
   // publisher for streaming
-  imu_data_raw_pub_ = this->create_publisher<sensor_msgs::msg::Imu>(
-    "imu/data_raw", rclcpp::QoS(1));
-  imu_data_pub_ =
-    this->create_publisher<sensor_msgs::msg::Imu>("imu/data", rclcpp::QoS(1));
-  imu_mag_pub_ = this->create_publisher<sensor_msgs::msg::MagneticField>(
-    "imu/mag", rclcpp::QoS(1));
-  imu_temperature_pub_ = this->create_publisher<std_msgs::msg::Float64>(
-    "imu/temperature", rclcpp::QoS(1));
+  imu_data_raw_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("imu/data_raw", rclcpp::QoS(1));
+  imu_data_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("imu/data", rclcpp::QoS(1));
+  imu_mag_pub_ = this->create_publisher<sensor_msgs::msg::MagneticField>("imu/mag", rclcpp::QoS(1));
+  imu_temperature_pub_ = this->create_publisher<std_msgs::msg::Float64>("imu/temperature", rclcpp::QoS(1));
 
   if (initialize() == false) {
-    RCLCPP_ERROR(
-      this->get_logger(),
-      "Initialize() returns false, please check your devices.");
-    exit(0);
+    RCLCPP_ERROR(this->get_logger(), "Initialize() returns false, please check your devices.");
+    exit(1);
   } else {
     RCLCPP_INFO(this->get_logger(), "Initialization OK!");
   }
@@ -59,8 +50,7 @@ MyAhrsDriverForROS::MyAhrsDriverForROS(std::string port, int baud_rate)
 
 MyAhrsDriverForROS::~MyAhrsDriverForROS() {}
 
-bool MyAhrsDriverForROS::initialize()
-{
+bool MyAhrsDriverForROS::initialize() {
   bool ok = false;
 
   do {
@@ -86,17 +76,14 @@ bool MyAhrsDriverForROS::initialize()
   return ok;
 }
 
-void MyAhrsDriverForROS::publish_topic(int sensor_id)
-{
+void MyAhrsDriverForROS::publish_topic(int sensor_id) {
   auto imu_data_raw_msg = sensor_msgs::msg::Imu();
   auto imu_data_msg = sensor_msgs::msg::Imu();
   auto imu_magnetic_msg = sensor_msgs::msg::MagneticField();
   auto imu_temperature_msg = std_msgs::msg::Float64();
 
-  double linear_acceleration_cov =
-    linear_acceleration_stddev_ * linear_acceleration_stddev_;
-  double angular_velocity_cov =
-    angular_velocity_stddev_ * angular_velocity_stddev_;
+  double linear_acceleration_cov = linear_acceleration_stddev_ * linear_acceleration_stddev_;
+  double angular_velocity_cov = angular_velocity_stddev_ * angular_velocity_stddev_;
   double magnetic_field_cov = magnetic_field_stddev_ * magnetic_field_stddev_;
   double orientation_cov = orientation_stddev_ * orientation_stddev_;
 
@@ -210,24 +197,17 @@ void MyAhrsDriverForROS::publish_topic(int sensor_id)
   }
 }
 
-void MyAhrsDriverForROS::OnSensorData(int sensor_id, SensorData data)
-{
+void MyAhrsDriverForROS::OnSensorData(int sensor_id, SensorData data) {
   LockGuard _l(lock_);
   sensor_data_ = data;
   publish_topic(sensor_id);
 }
 
-void MyAhrsDriverForROS::OnAttributeChange(
-  int sensor_id, std::string attribute_name, std::string value)
-{
-  printf(
-    "OnAttributeChange(id %d, %s, %s)\n", sensor_id,
-    attribute_name.c_str(), value.c_str());
+void MyAhrsDriverForROS::OnAttributeChange(int sensor_id, std::string attribute_name, std::string value) {
+  printf("OnAttributeChange(id %d, %s, %s)\n", sensor_id, attribute_name.c_str(), value.c_str());
 }
 
-tf2::Quaternion MyAhrsDriverForROS::Euler2Quaternion(
-  float roll, float pitch, float yaw)
-{
+tf2::Quaternion MyAhrsDriverForROS::Euler2Quaternion(float roll, float pitch, float yaw) {
   float qx = (sin(roll / 2) * cos(pitch / 2) * cos(yaw / 2)) -
     (cos(roll / 2) * sin(pitch / 2) * sin(yaw / 2));
   float qy = (cos(roll / 2) * sin(pitch / 2) * cos(yaw / 2)) +
@@ -241,3 +221,4 @@ tf2::Quaternion MyAhrsDriverForROS::Euler2Quaternion(
   return q;
 }
 } // namespace WithRobot
+
